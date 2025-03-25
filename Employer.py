@@ -2,12 +2,27 @@ import tkinter as tk
 from tkinter import messagebox, filedialog, ttk
 from PIL import Image, ImageTk
 import re
+import phonenumbers
+import locale
+
+
+
 
 # Function to clear the right frame
 def clear_frame():
     for widget in right_frame.winfo_children():
         widget.destroy()
 
+def get_country_code():
+    try:
+        country_code = locale.getdefaultlocale()[0].split('_')[1]
+        example_number = phonenumbers.example_number_for_region(country_code)
+        if example_number:
+            return f"+{example_number.country_code}"
+        else:
+            return "+1"  # Default to US if detection fails
+    except Exception:
+        return "+1"
 # ==================== COMPLAIN ====================
 def submit_complaint():
     complaint = complaint_text.get("1.0", "end-1c")
@@ -47,14 +62,23 @@ def load_image(file_path):
     image_label.config(image=profile_img)
     image_label.image = profile_img
 
+# ==================== PROFILE ====================
 def validate_phone():
+    global entry_phone, country_code_var  # Declare globals here
     phone = entry_phone.get()
-    if re.fullmatch(r'\d{10}', phone):
-        messagebox.showinfo("Success", "Phone number is valid!")
-    else:
-        messagebox.showerror("Error", "Invalid phone number! Must be 10 digits.")
+    full_phone = f"{country_code_var.get()}{phone}"  # Use country_code_var here
+
+    try:
+        parsed_number = phonenumbers.parse(full_phone, None)
+        if phonenumbers.is_valid_number(parsed_number):
+            messagebox.showinfo("Success", "Phone number is valid!")
+        else:
+            messagebox.showerror("Error", "Invalid phone number format!")
+    except Exception as e:
+        messagebox.showerror("Error", f"Invalid phone number: {e}")
 
 def save_profile():
+    global entry_phone, country_code_var  # Declare globals here
     first_name = entry_first_name.get()
     last_name = entry_last_name.get()
     id_no = entry_id.get()
@@ -65,11 +89,20 @@ def save_profile():
         messagebox.showerror("Error", "All fields are required!")
         return
 
-    if not re.fullmatch(r'\d{10}', phone):
-        messagebox.showerror("Error", "Invalid phone number! Must be 10 digits.")
+    full_phone = f"{country_code_var.get()}{phone}"  # Use country_code_var here
+
+    try:
+        parsed_number = phonenumbers.parse(full_phone, None)
+        if not phonenumbers.is_valid_number(parsed_number):
+            messagebox.showerror("Error", "Invalid phone number format!")
+            return
+    except Exception as e:
+        messagebox.showerror("Error", f"Invalid phone number: {e}")
         return
 
     messagebox.showinfo("Success", f"Profile for {first_name} {last_name} saved successfully!")
+
+# ... (rest of your code remains the same)
 
 def show_profile():
     clear_frame()
@@ -106,11 +139,24 @@ def show_profile():
 
     # Phone Number
     tk.Label(left_frame, text="Phone Number:").grid(row=4, column=0, sticky="w", pady=5)
-    global entry_phone
-    entry_phone = tk.Entry(left_frame, width=40)
-    entry_phone.grid(row=4, column=1, pady=5)
 
-    tk.Button(left_frame, text="Validate", command=validate_phone, bg="#555555", fg="white", padx=10, pady=5).grid(row=4, column=2, padx=5)
+    # Country Code Dropdown
+    global country_code_var
+    country_code = tk.StringVar()
+    country_code.set(get_country_code())
+
+    country_code_dropdown = ttk.Combobox(left_frame, textvariable=country_code, width=5)
+    country_code_dropdown.grid(row=4, column=1, sticky="w", pady=5)
+
+    # Phone Number Entry
+    global entry_phone
+    entry_phone = tk.Entry(left_frame, width=30)
+    entry_phone.grid(row=4, column=1, pady=5, padx=(60, 0), sticky="w")
+
+    # Validate Button
+    validate_button = tk.Button(left_frame, text="Validate", command=validate_phone, bg="#555555", fg="white", padx=10,
+                                pady=5)
+    validate_button.grid(row=4, column=2, padx=5, sticky="w")
 
     # Profile picture section
     right_frame_inner = tk.Frame(form_frame)
